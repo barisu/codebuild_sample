@@ -92,7 +92,7 @@ Resources:
         Type: S3
         Location: !Ref ArtifactsBucket
         Name: 'build-output'
-        Packaging: ZIP
+        Packaging: NONE
       Environment:
         Type: LINUX_CONTAINER
         ComputeType: BUILD_GENERAL1_SMALL
@@ -101,25 +101,8 @@ Resources:
       Source:
         Type: CODECOMMIT
         Location: !GetAtt SourceRepository.CloneUrlHttp
-        BuildSpec: |
-          version: 0.2
-          phases:
-            pre_build:
-              commands:
-                - echo Logging in to Amazon ECR...
-                - echo Build started on `date`
-            build:
-              commands:
-                - echo Build started on `date`
-                - echo Compiling the source code...
-                # Add your build commands here
-            post_build:
-              commands:
-                - echo Build completed on `date`
-          artifacts:
-            files:
-              - '**/*'
-      SourceVersion: !Sub 'refs/heads/${BranchName}'
+        BuildSpec: 'buildspec.yml'
+      SourceVersion: 'refs/heads/main'
 
 Outputs:
   RepositoryCloneUrlHttp:
