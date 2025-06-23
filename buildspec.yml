@@ -1,0 +1,46 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - echo Build started on `date`
+      - echo Installing dependencies...
+      # Add dependency installation commands here
+      # Example: npm install, pip install -r requirements.txt, etc.
+
+  build:
+    commands:
+      - echo Build started on `date`
+      - echo Compiling the source code...
+      # Add your build commands here
+      # Examples:
+      # - npm run build
+      # - mvn clean compile
+      # - python setup.py build
+      # - go build -o app main.go
+
+  post_build:
+    commands:
+      - echo Build completed on `date`
+      - echo Creating tar.gz archive of test folder...
+      - tar -czf test.tar.gz test/
+      - echo Archive created successfully
+      # Add post-build commands here
+      # Examples:
+      # - npm run test
+      # - python -m pytest
+      # - go test ./...
+
+artifacts:
+  files:
+    - 'test.tar.gz'
+  name: 'test-archive-$(date +%Y-%m-%d)'
+
+cache:
+  paths:
+    # Add paths to cache between builds
+    # Examples:
+    # - '/root/.npm/**/*'
+    # - '/root/.m2/**/*'
+    # - '/root/.cache/pip/**/*'

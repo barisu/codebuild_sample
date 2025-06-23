@@ -1,0 +1,147 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CodeBuild, S3, and CodeCommit resources for build pipeline'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: 'sample-build-project'
+    Description: 'Name of the build project'
+  
+  BranchName:
+    Type: String
+    Default: 'main'
+    Description: 'Branch name to build'
+
+Resources:
+  # S3 Bucket for build artifacts
+  ArtifactsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${ProjectName}-artifacts-${AWS::AccountId}'
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  # CodeCommit Repository
+  SourceRepository:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      RepositoryName: !Sub '${ProjectName}-repo'
+      RepositoryDescription: 'Source repository for build project'
+
+  # CodeBuild Service Role
+  CodeBuildServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-codebuild-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: CodeBuildServicePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # CloudWatch Logs permissions (minimum required)
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${ProjectName}*'
+              
+              # S3 permissions for artifacts
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource: !Sub '${ArtifactsBucket}/*'
+              
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource: !Ref ArtifactsBucket
+              
+              # CodeCommit permissions
+              - Effect: Allow
+                Action:
+                  - codecommit:GitPull
+                Resource: !GetAtt SourceRepository.Arn
+
+  # CodeBuild Project
+  BuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Ref ProjectName
+      Description: 'Build project for sample application'
+      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      Artifacts:
+        Type: S3
+        Location: !Sub '${ArtifactsBucket}/artifacts'
+        Name: 'build-output'
+        Packaging: ZIP
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:3.0
+        PrivilegedMode: false
+      Source:
+        Type: CODECOMMIT
+        Location: !GetAtt SourceRepository.CloneUrlHttp
+        BuildSpec: |
+          version: 0.2
+          phases:
+            pre_build:
+              commands:
+                - echo Logging in to Amazon ECR...
+                - echo Build started on `date`
+            build:
+              commands:
+                - echo Build started on `date`
+                - echo Compiling the source code...
+                # Add your build commands here
+            post_build:
+              commands:
+                - echo Build completed on `date`
+          artifacts:
+            files:
+              - '**/*'
+      SourceVersion: !Sub 'refs/heads/${BranchName}'
+
+Outputs:
+  RepositoryCloneUrlHttp:
+    Description: 'HTTP clone URL of the repository'
+    Value: !GetAtt SourceRepository.CloneUrlHttp
+    Export:
+      Name: !Sub '${AWS::StackName}-RepoUrl'
+  
+  RepositoryCloneUrlSsh:
+    Description: 'SSH clone URL of the repository'
+    Value: !GetAtt SourceRepository.CloneUrlSsh
+    Export:
+      Name: !Sub '${AWS::StackName}-RepoSshUrl'
+  
+  ArtifactsBucketName:
+    Description: 'Name of the artifacts bucket'
+    Value: !Ref ArtifactsBucket
+    Export:
+      Name: !Sub '${AWS::StackName}-ArtifactsBucket'
+  
+  BuildProjectName:
+    Description: 'Name of the CodeBuild project'
+    Value: !Ref BuildProject
+    Export:
+      Name: !Sub '${AWS::StackName}-BuildProject'
