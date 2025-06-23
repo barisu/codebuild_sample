@@ -68,12 +68,12 @@ Resources:
                   - s3:GetObject
                   - s3:PutObject
                   - s3:DeleteObject
-                Resource: !Sub '${ArtifactsBucket}/*'
+                Resource: !Sub '${ArtifactsBucket.Arn}/*'
               
               - Effect: Allow
                 Action:
                   - s3:ListBucket
-                Resource: !Ref ArtifactsBucket
+                Resource: !GetAtt ArtifactsBucket.Arn
               
               # CodeCommit permissions
               - Effect: Allow
@@ -90,7 +90,7 @@ Resources:
       ServiceRole: !GetAtt CodeBuildServiceRole.Arn
       Artifacts:
         Type: S3
-        Location: !Sub '${ArtifactsBucket}/artifacts'
+        Location: !Ref ArtifactsBucket
         Name: 'build-output'
         Packaging: ZIP
       Environment:
